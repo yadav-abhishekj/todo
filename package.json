@@ -6,7 +6,7 @@
   "type": "module",
   "main": "server.js",
   "scripts": {
-    "start:local": "cross-env NODE_ENV=local nodemon src/server.js",
+    "start:localhost": "cross-env NODE_ENV=local nodemon src/server.js",
     "start:dev": "cross-env NODE_ENV=development node src/server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -19,6 +19,7 @@
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "mongoose": "^8.19.2",
+    "winston": "^3.18.3",
     "zod": "^4.1.12"
   },
   "devDependencies": {
