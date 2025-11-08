@@ -2,46 +2,61 @@ import TodoModel from "../../models/todo/todo.model.js";
 import { logger } from "../../shared/helper/logger.js";
 import { TodoValidation } from "../../shared/helper/validation.js";
 import { ZodError } from "zod";
-import {
-  sendSuccess,
-  sendBadRequest,
-  sendServerError,
-  sendNotFound,
-} from "../../shared/helper/response.js";
+import { apiResponseFormat } from "../../shared/helper/response.js";
 
 const listing = async (req, res) => {
   try {
     const params = TodoValidation.queryParams.parse(req.params);
+    //  for fetching the detail
     if (params.id) {
       const data = await TodoModel.findOne({ _id: params.id });
-      return sendSuccess(res, data, data ? "Detail found" : "No Detail found");
+      return apiResponseFormat.sendSuccess({
+        res,
+        data,
+        message: data ? "Detail found" : "No Detail found",
+      });
     }
+
+    // for fetching all the listing of the todo listing and with filters if applied
     const query = TodoValidation.queryParams.parse(req.query);
     const filter = {};
     if (query.search) {
       filter.title = { $regex: query.search, $options: "i" };
     }
     if (query.page && query.limit) {
-      query.skip = (query.page - 1) * query.limit;
+      query.skip = (+query.page - 1) * +query.limit;
     }
-    const data = await TodoModel.find(filter)
-      .skip(query.skip || 0)
-      .limit(query.limit);
+    const query_builder = TodoModel.find(filter);
+    const totalCount = await TodoModel.countDocuments(filter);
+    if (query.sortBy) {
+      query_builder.sort({
+        [query.sortBy]: query.sortOrder === "asc" ? -1 : 1,
+      });
+    }
+    query_builder.skip(+query.skip || 0).limit(+query.limit);
+    const data = await query_builder;
 
-    return sendSuccess(
+    return apiResponseFormat.sendPaginated({
       res,
       data,
-      data.length > 0 ? "Todo found" : "No Todo found"
-    );
+      total: totalCount,
+      limit: +query.limit || totalCount,
+      skip: +query.skip || 0,
+      message: data.length > 0 ? "Todo found" : "No Todo found",
+    });
   } catch (error) {
     if (error instanceof ZodError) {
-      return sendBadRequest(res, error, "Validation failed");
+      return apiResponseFormat.sendBadRequest({
+        res,
+        error,
+        message: "Validation failed",
+      });
     }
-    return sendServerError(
+    return apiResponseFormat.sendServerError({
       res,
       error,
-      "Something went wrong in listing process"
-    );
+      message: "Something went wrong in listing process",
+    });
   }
 };
 
@@ -53,17 +68,25 @@ const addTodo = async (req, res) => {
     // saving record
     await todo.save();
 
-    return sendSuccess(res, todo, "Record added successfully");
+    return apiResponseFormat.sendSuccess({
+      res,
+      data: todo,
+      message: "Record added successfully",
+    });
   } catch (error) {
     logger.error(error);
     if (error instanceof ZodError) {
-      return sendBadRequest(res, error, "Validation failed");
+      return apiResponseFormat.sendBadRequest({
+        res,
+        error,
+        message: "Validation failed",
+      });
     }
-    return sendServerError(
+    return apiResponseFormat.sendServerError({
       res,
       error,
-      "Something went wrong in adding process"
-    );
+      message: "Something went wrong in adding process",
+    });
   }
 };
 
@@ -71,7 +94,10 @@ const updateTodo = async (req, res) => {
   try {
     const params = TodoValidation.queryParams.parse(req.params);
     if (!params.id) {
-      return sendBadRequest(res, "key is required to update the data");
+      return apiResponseFormat.sendBadRequest({
+        res,
+        message: "key is required to update the data",
+      });
     }
     const input = TodoValidation.update.parse(req.body);
     // update into database
@@ -83,38 +109,57 @@ const updateTodo = async (req, res) => {
       }
     );
 
-    return sendSuccess(res, updated, "Record updated successfully");
+    return apiResponseFormat.sendSuccess({
+      res,
+      updated,
+      message: "Record updated successfully",
+    });
   } catch (error) {
     if (error instanceof ZodError) {
-      return sendBadRequest(res, error, "Validation failed");
+      return apiResponseFormat.sendBadRequest({
+        res,
+        error,
+        message: "Validation failed",
+      });
     }
-    return sendServerError(
+    return apiResponseFormat.sendServerError({
       res,
       error,
-      "Something went wrong in updating process"
-    );
+      message: "Something went wrong in updating process",
+    });
   }
 };
 
 const deleteTodo = async (req, res) => {
   try {
     if (!req.params || !req.params.id) {
-      return sendBadRequest(res, "key is required to delete the data");
+      return apiResponseFormat.sendBadRequest({
+        res,
+        message: "key is required to delete the data",
+      });
     }
     const isExisting = await TodoModel.findOne({ _id: req.params.id });
     if (!isExisting) {
-      return sendNotFound(res, "Record not found");
+      return apiResponseFormat.sendNotFound({
+        res,
+        message: "Record not found",
+      });
     }
     await isExisting.softDelete();
-    return sendSuccess(res, isExisting, "Record deleted successfully");
+    return apiResponseFormat.sendSuccess({
+      res,
+      data: isExisting,
+      message: "Record deleted successfully",
+    });
   } catch (error) {
-    return sendServerError(
+    return apiResponseFormat.sendServerError({
       res,
       error,
-      "Something went wrong in deleting process"
-    );
+      message: "Something went wrong in deleting process",
+    });
   }
 };
+
 const Todo = {
   listing,
   addTodo,

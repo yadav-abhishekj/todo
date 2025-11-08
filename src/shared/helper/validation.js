@@ -21,8 +21,10 @@ const queryParams = z.object({
     .regex(/^[a-fA-F0-9]{24}$/, "Invalid MongoDB ObjectId")
     .optional(),
   search: z.string().optional(),
-  page: z.number().min(1).optional(),
-  limit: z.number().min(1).optional(),
+  page: z.string().min(1).optional(),
+  limit: z.string().min(1).optional(),
+  sortBy: z.string().optional(),
+  sortOrder: z.enum([1, -1]).optional(),
 });
 
 export const TodoValidation = {

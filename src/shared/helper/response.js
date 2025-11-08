@@ -1,7 +1,7 @@
 import { logger } from "./logger.js";
 import { ZodError } from "zod";
 
-function formatZodError(err) {
+function formatZodErrorMessage(err) {
   if (!(err instanceof ZodError)) return err;
   // Map Zod errors into a compact structure
   return JSON.parse(err.message).map((e) => ({
@@ -12,32 +12,30 @@ function formatZodError(err) {
   }));
 }
 
-export function sendSuccess(
+function sendSuccess({ res, data = {}, message = "Success", status = 200 }) {
+  return res.status(status).json({ status, message, data });
+}
+
+function sendPaginated({
   res,
-  data = null,
+  data = [],
+  total = 0,
+  limit = 0,
+  skip = 0,
   message = "Success",
-  status = 200
-) {
+  status = 200,
+}) {
+  const pagination = { total, limit, skip };
+  return res.status(status).json({ status, message, ...pagination, data });
+}
+
+function sendCreated({ res, data = null, message = "Created", status = 201 }) {
   return res.status(status).json({ status, message, data });
 }
 
-export function sendCreated(
-  res,
-  data = null,
-  message = "Created",
-  status = 201
-) {
-  return res.status(status).json({ status, message, data });
-}
-
-export function sendBadRequest(
-  res,
-  errors,
-  message = "Bad Request",
-  status = 400
-) {
+function sendBadRequest({ res, error, message = "Bad Request", status = 400 }) {
   const formatted =
-    errors instanceof ZodError ? formatZodError(errors) : errors;
+    error instanceof ZodError ? formatZodErrorMessage(error) : error;
   // Log a warning with the structured errors for observability
   try {
     logger.error(message, { errors: formatted });
@@ -47,17 +45,17 @@ export function sendBadRequest(
   return res.status(status).json({ status, message, errors: formatted });
 }
 
-export function sendNotFound(res, message = "Not Found", status = 404) {
+function sendNotFound({ res, message = "Not Found", status = 404 }) {
   logger.info(message);
   return res.status(status).json({ status, message });
 }
 
-export function sendServerError(
+function sendServerError({
   res,
   error,
   message = "Internal Server Error",
-  status = 500
-) {
+  status = 500,
+}) {
   // Accept either Error or plain value
   const payload =
     error instanceof Error
@@ -76,13 +74,22 @@ export function sendServerError(
   });
 }
 
-export function sendServiceUnavailable(
+function sendServiceUnavailable({
   res,
   message = "Service Unavailable",
-  status = 503
-) {
+  status = 503,
+}) {
   logger.info(message);
   return res.status(status).json({ status, message });
 }
 
-export { formatZodError };
+export const apiResponseFormat = {
+  formatZodErrorMessage,
+  sendSuccess,
+  sendPaginated,
+  sendCreated,
+  sendBadRequest,
+  sendNotFound,
+  sendServerError,
+  sendServiceUnavailable,
+};
